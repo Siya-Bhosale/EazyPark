@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EazyPark — Payment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --indigo:   #4f46e5;
+      --violet:   #7c3aed;
+      --electric: #6366f1;
+      --aurora1:  #818cf8;
+      --aurora2:  #a78bfa;
+      --deep:     #0f0e1a;
+      --surface:  rgba(255,255,255,0.06);
+      --surface2: rgba(255,255,255,0.10);
+      --border:   rgba(255,255,255,0.10);
+      --text:     #f0eeff;
+      --muted:    rgba(240,238,255,0.48);
+      --success:  #34d399;
+      --warn:     #fbbf24;
+      --danger:   #f87171;
+      --nav-w:    240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--deep); color: var(--text); min-height: 100vh; display: flex; }
+
+    .aurora-bg { position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden; }
+    .aurora-bg::before { content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(ellipse,rgba(52,211,153,0.15) 0%,transparent 70%);top:-100px;right:-100px;animation:dA 14s ease-in-out infinite alternate; }
+    .aurora-bg::after  { content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(ellipse,rgba(79,70,229,0.20) 0%,transparent 70%);bottom:-80px;left:100px;animation:dB 16s ease-in-out infinite alternate; }
+    @keyframes dA { from{transform:translate(0,0)} to{transform:translate(-40px,30px)} }
+    @keyframes dB { from{transform:translate(0,0)} to{transform:translate(30px,-20px)} }
+
+    .sidebar {
+      width:var(--nav-w);background:rgba(15,14,26,0.9);border-right:1px solid var(--border);
+      backdrop-filter:blur(30px);display:flex;flex-direction:column;
+      position:fixed;top:0;left:0;bottom:0;z-index:100;padding:28px 20px;
+    }
+    .sidebar-logo { display:flex;align-items:center;gap:10px;margin-bottom:38px;padding-bottom:24px;border-bottom:1px solid var(--border); }
+    .logo-icon { width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px rgba(79,70,229,0.4); }
+    .logo-text { font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800; }
+    .nav-label { font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding:0 8px; }
+    .nav-group { margin-bottom:28px; }
+    .nav-item { display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;color:var(--muted);font-size:0.9rem;font-weight:500;cursor:pointer;transition:all .22s;margin-bottom:2px;text-decoration:none; }
+    .nav-item:hover { background:var(--surface);color:var(--text); }
+    .nav-item.active { background:linear-gradient(135deg,rgba(79,70,229,0.25),rgba(124,58,237,0.20));color:var(--aurora2);border:1px solid rgba(99,102,241,0.25); }
+    .nav-icon { font-size:17px;width:20px;text-align:center; }
+    .nav-badge { margin-left:auto;background:var(--indigo);color:#fff;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:50px; }
+    .sidebar-user { margin-top:auto;padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px; }
+    .user-ava { width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--aurora1),var(--violet));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0; }
+    .user-info small { display:block;color:var(--muted);font-size:0.72rem; }
+    .user-info span { font-size:0.88rem;font-weight:500; }
+
+    .main { margin-left:var(--nav-w);flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:1; }
+
+    .topbar { padding:20px 32px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border);background:rgba(15,14,26,0.6);backdrop-filter:blur(20px);position:sticky;top:0;z-index:50; }
+    .topbar-title { font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;flex:1; }
+    .secure-badge { display:flex;align-items:center;gap:6px;color:var(--success);font-size:0.82rem;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);padding:6px 14px;border-radius:50px; }
+
+    .content { padding:28px 32px;flex:1; }
+
+    /* Layout */
+    .pay-layout { display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start; }
+
+    /* Receipt Card */
+    .receipt-card {
+      background:var(--surface);border:1px solid var(--border);border-radius:24px;
+      overflow:hidden;animation:fadeUp .6s cubic-bezier(.16,1,.3,1) both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    .receipt-header {
+      background:linear-gradient(135deg,rgba(79,70,229,0.35),rgba(124,58,237,0.30));
+      padding:28px 28px 24px;border-bottom:1px dashed rgba(255,255,255,0.1);
+      position:relative;overflow:hidden;
+    }
+    .receipt-header::before { content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.05); }
+    .receipt-header::after  { content:'';position:absolute;bottom:-40px;left:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.04); }
+    .receipt-top { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;position:relative;z-index:1; }
+    .receipt-top h2 { font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;opacity:.8; }
+    .receipt-id { font-size:0.75rem;color:var(--muted);font-family:'DM Sans',sans-serif; }
+    .receipt-total { font-family:'Syne',sans-serif;font-size:3.2rem;font-weight:800;line-height:1;position:relative;z-index:1; }
+    .receipt-total small { font-size:1.2rem;font-weight:400;color:var(--muted); }
+    .receipt-slot-row { display:flex;align-items:center;gap:16px;margin-top:18px;position:relative;z-index:1; }
+    .receipt-slot-badge {
+      background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+      border-radius:12px;padding:8px 16px;
+      font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
+    }
+    .receipt-slot-meta small { display:block;color:rgba(255,255,255,0.5);font-size:0.75rem; }
+    .receipt-slot-meta span { font-size:0.88rem;font-weight:500; }
+
+    /* Perforated edge */
+    .perforated {
+      display:flex;align-items:center;height:20px;
+      background:var(--surface);
+      background-image:radial-gradient(circle,var(--deep) 4px,transparent 4px);
+      background-size:24px 20px;background-position:left center;
+    }
+
+    /* Line items */
+    .receipt-body { padding:24px 28px; }
+    .line-item {
+      display:flex;justify-content:space-between;align-items:center;
+      padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);
+    }
+    .line-item:last-child { border-bottom:none; }
+    .line-label { font-size:0.88rem;color:var(--muted); }
+    .line-label strong { display:block;color:var(--text);font-weight:500;font-size:0.88rem; }
+    .line-value { font-size:0.95rem;font-weight:600;font-family:'Syne',sans-serif; }
+
+    .total-row {
+      display:flex;justify-content:space-between;align-items:center;
+      padding:18px 28px;
+      background:rgba(99,102,241,0.08);border-top:1px solid rgba(99,102,241,0.2);
+    }
+    .total-row span:first-child { font-size:0.9rem;font-weight:600; }
+    .total-row span:last-child { font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--aurora2); }
+
+    /* Transaction history */
+    .tx-card {
+      background:var(--surface);border:1px solid var(--border);border-radius:24px;overflow:hidden;
+      margin-top:20px;
+    }
+    .tx-header { padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center; }
+    .tx-header h3 { font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700; }
+    .tx-list { }
+    .tx-item {
+      display:flex;align-items:center;gap:14px;padding:16px 24px;
+      border-bottom:1px solid rgba(255,255,255,0.04);transition:background .2s;cursor:pointer;
+    }
+    .tx-item:hover { background:rgba(255,255,255,0.02); }
+    .tx-item:last-child { border-bottom:none; }
+    .tx-icon { width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+    .tx-info { flex:1; }
+    .tx-info strong { display:block;font-size:0.88rem;font-weight:500; }
+    .tx-info small { color:var(--muted);font-size:0.75rem; }
+    .tx-amount { text-align:right; }
+    .tx-amount strong { display:block;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700; }
+    .tx-amount small { color:var(--muted);font-size:0.72rem; }
+    .tx-status { font-size:0.7rem;font-weight:600;padding:3px 8px;border-radius:50px;margin-top:3px;display:inline-block; }
+    .tx-status.ok { background:rgba(52,211,153,0.12);color:var(--success); }
+    .tx-status.pend { background:rgba(251,191,36,0.12);color:var(--warn); }
+    .tx-status.fail { background:rgba(248,113,113,0.12);color:var(--danger); }
+
+    /* Payment panel */
+    .pay-panel { display:flex;flex-direction:column;gap:18px; }
+
+    /* Wallet card */
+    .wallet-pay-card {
+      background:linear-gradient(135deg,rgba(52,211,153,0.18),rgba(16,185,129,0.12));
+      border:1.5px solid rgba(52,211,153,0.3);border-radius:22px;padding:22px;
+      position:relative;overflow:hidden;
+    }
+    .wallet-pay-card::before { content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(52,211,153,0.08); }
+    .wallet-top { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px; }
+    .wallet-label { font-size:0.78rem;color:rgba(52,211,153,0.7);font-weight:500;text-transform:uppercase;letter-spacing:0.06em; }
+    .wallet-chip { background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);color:var(--success);font-size:0.72rem;font-weight:600;padding:4px 10px;border-radius:50px; }
+    .wallet-bal { font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;margin-bottom:4px; }
+    .wallet-sub { color:rgba(52,211,153,0.6);font-size:0.8rem;margin-bottom:16px; }
+    .use-wallet-btn {
+      width:100%;padding:13px;border-radius:14px;
+      background:var(--success);color:var(--deep);
+      font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;
+      border:none;cursor:pointer;transition:all .25s;
+      box-shadow:0 4px 20px rgba(52,211,153,0.3);
+    }
+    .use-wallet-btn:hover { transform:translateY(-2px);box-shadow:0 8px 28px rgba(52,211,153,0.4); }
+
+    /* Methods */
+    .methods-card {
+      background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:22px;
+    }
+    .methods-card h3 { font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;margin-bottom:16px; }
+    .method-opt {
+      display:flex;align-items:center;gap:14px;padding:14px 16px;
+      border-radius:14px;border:1.5px solid var(--border);
+      cursor:pointer;transition:all .25s;margin-bottom:10px;
+      background:rgba(255,255,255,0.02);
+    }
+    .method-opt:hover { border-color:rgba(99,102,241,0.4);background:rgba(99,102,241,0.05); }
+    .method-opt.selected { border-color:var(--indigo);background:rgba(99,102,241,0.1); }
+    .method-icon { width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+    .method-info { flex:1; }
+    .method-info strong { display:block;font-size:0.88rem;font-weight:500; }
+    .method-info small { color:var(--muted);font-size:0.75rem; }
+    .method-radio { width:18px;height:18px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .2s; }
+    .method-opt.selected .method-radio { border-color:var(--indigo);background:var(--indigo); }
+    .method-opt.selected .method-radio::after { content:'';width:6px;height:6px;border-radius:50%;background:#fff; }
+
+    /* UPI input */
+    .upi-input-wrap { margin-top:10px;display:none; }
+    .upi-input-wrap.show { display:block; }
+    .upi-input {
+      width:100%;padding:12px 16px;
+      background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:12px;
+      color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none;
+      transition:all .25s;
+    }
+    .upi-input:focus { border-color:var(--electric);box-shadow:0 0 0 3px rgba(99,102,241,0.15); }
+    .upi-input::placeholder { color:var(--muted); }
+
+    /* Card input */
+    .card-form { margin-top:10px;display:none; }
+    .card-form.show { display:block; }
+    .card-input {
+      width:100%;padding:12px 16px;margin-bottom:10px;
+      background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:12px;
+      color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none;
+      transition:all .25s;
+    }
+    .card-input:focus { border-color:var(--electric);box-shadow:0 0 0 3px rgba(99,102,241,0.15); }
+    .card-input::placeholder { color:var(--muted); }
+    .card-row { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+
+    /* Pay button */
+    .btn-pay {
+      width:100%;padding:17px;border-radius:16px;
+      background:linear-gradient(135deg,var(--indigo),var(--violet));
+      border:none;color:#fff;
+      font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;
+      cursor:pointer;transition:all .25s;
+      box-shadow:0 8px 28px rgba(79,70,229,0.45);
+      letter-spacing:0.02em;position:relative;overflow:hidden;
+    }
+    .btn-pay:hover { transform:translateY(-2px);box-shadow:0 12px 36px rgba(79,70,229,0.55); }
+    .btn-pay::after { content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.08),transparent); }
+
+    /* Success overlay */
+    .success-overlay {
+      position:fixed;inset:0;z-index:999;
+      background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity .4s;
+    }
+    .success-overlay.show { opacity:1;pointer-events:auto; }
+    .success-box {
+      background:#16152a;border:1px solid rgba(52,211,153,0.3);
+      border-radius:28px;padding:48px 40px;text-align:center;
+      max-width:400px;width:90%;
+      transform:scale(0.85);transition:transform .45s cubic-bezier(.16,1,.3,1);
+    }
+    .success-overlay.show .success-box { transform:scale(1); }
+    .success-icon {
+      width:90px;height:90px;border-radius:50%;
+      background:rgba(52,211,153,0.15);border:2px solid rgba(52,211,153,0.4);
+      display:flex;align-items:center;justify-content:center;
+      font-size:40px;margin:0 auto 24px;
+      animation:pop .5s cubic-bezier(.16,1,.3,1) .2s both;
+    }
+    @keyframes pop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+    .success-box h2 { font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:8px; }
+    .success-box p { color:var(--muted);font-size:0.9rem;line-height:1.5;margin-bottom:28px; }
+    .success-amount { font-family:'Syne',sans-serif;font-size:2.5rem;font-weight:800;color:var(--success);margin:16px 0; }
+    .receipt-code {
+      background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);
+      border-radius:12px;padding:12px;margin-bottom:24px;
+      font-family:monospace;font-size:0.9rem;color:var(--success);letter-spacing:0.1em;
+    }
+    .btn-done {
+      display:inline-block;padding:14px 40px;border-radius:14px;
+      background:linear-gradient(135deg,var(--indigo),var(--violet));
+      color:#fff;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
+      border:none;cursor:pointer;transition:all .25s;text-decoration:none;
+      box-shadow:0 6px 20px rgba(79,70,229,0.4);
+    }
+    .btn-done:hover { transform:translateY(-2px); }
+
+    @media (max-width:1000px) { .pay-layout { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="aurora-bg"></div>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🅿️</div>
+    <span class="logo-text">EazyPark</span>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Main</div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="slots.html" class="nav-item"><span class="nav-icon">🗺️</span> Find Slots</a>
+    <a href="payment.html" class="nav-item active"><span class="nav-icon">💳</span> Payments</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Account</div>
+    <a href="#" class="nav-item"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" style="background:var(--danger)">3</span></a>
+    <a href="#" class="nav-item"><span class="nav-icon">⚙️</span> Settings</a>
+    <a href="index.html" class="nav-item"><span class="nav-icon">🚪</span> Sign Out</a>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-ava">AM</div>
+    <div class="user-info"><span>Alex Morgan</span><small>Premium Member</small></div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">💳 Payment Gateway</div>
+    <div class="secure-badge">🔒 256-bit SSL Secured</div>
+  </div>
+
+  <div class="content">
+    <div class="pay-layout">
+
+      <!-- Left: Receipt + History -->
+      <div>
+        <!-- Receipt -->
+        <div class="receipt-card">
+          <div class="receipt-header">
+            <div class="receipt-top">
+              <div>
+                <h2>BOOKING RECEIPT</h2>
+                <div class="receipt-id">Ref: EPK-2604-8821 · Apr 25, 2026</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.5)">Status</div>
+                <div style="color:var(--warn);font-weight:600;font-size:0.85rem">Pending Payment</div>
+              </div>
+            </div>
+            <div class="receipt-total">₹<span id="r-total">85</span><small>.00</small></div>
+            <div class="receipt-slot-row">
+              <div class="receipt-slot-badge">B-14</div>
+              <div class="receipt-slot-meta">
+                <span>Zone B · Ground Floor · Standard Slot</span>
+                <small>Pune Central Mall Parking</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="perforated"></div>
+
+          <div class="receipt-body">
+            <div class="line-item">
+              <div class="line-label">
+                <strong>Parking Duration</strong>
+                10:30 AM → 12:30 PM
+              </div>
+              <div class="line-value">2 hrs</div>
+            </div>
+            <div class="line-item">
+              <div class="line-label">
+                <strong>Parking Fee</strong>
+                ₹40 × 2 hours
+              </div>
+              <div class="line-value">₹80</div>
+            </div>
+            <div class="line-item">
+              <div class="line-label">
+                <strong>Service Fee</strong>
+                Platform convenience fee
+              </div>
+              <div class="line-value">₹5</div>
+            </div>
+            <div class="line-item">
+              <div class="line-label">
+                <strong>GST (18%)</strong>
+                Applied on service fee
+              </div>
+              <div class="line-value" style="color:var(--muted)">₹0.90</div>
+            </div>
+            <div class="line-item">
+              <div class="line-label">
+                <strong>EazyPark Discount</strong>
+                Premium member benefit
+              </div>
+              <div class="line-value" style="color:var(--success)">−₹0.90</div>
+            </div>
+          </div>
+
+          <div class="total-row">
+            <span>Total Payable</span>
+            <span>₹85.00</span>
+          </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="tx-card" style="margin-top:20px">
+          <div class="tx-header">
+            <h3>Transaction History</h3>
+            <a href="#" style="color:var(--aurora2);font-size:0.8rem;text-decoration:none">Export CSV</a>
+          </div>
+          <div class="tx-list">
+            <div class="tx-item">
+              <div class="tx-icon" style="background:rgba(52,211,153,0.1)">🅿️</div>
+              <div class="tx-info">
+                <strong>Zone B · Slot B-14</strong>
+                <small>Apr 24, 2026 · Wallet</small>
+              </div>
+              <div class="tx-amount">
+                <strong style="color:var(--danger)">−₹80</strong>
+                <span class="tx-status ok">Completed</span>
+              </div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:rgba(99,102,241,0.1)">⬆️</div>
+              <div class="tx-info">
+                <strong>Wallet Top-up</strong>
+                <small>Apr 24, 2026 · UPI</small>
+              </div>
+              <div class="tx-amount">
+                <strong style="color:var(--success)">+₹500</strong>
+                <span class="tx-status ok">Credited</span>
+              </div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:rgba(251,191,36,0.1)">⚡</div>
+              <div class="tx-info">
+                <strong>Zone D · EV Bay 3</strong>
+                <small>Apr 23, 2026 · Wallet</small>
+              </div>
+              <div class="tx-amount">
+                <strong style="color:var(--danger)">−₹160</strong>
+                <span class="tx-status ok">Completed</span>
+              </div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:rgba(248,113,113,0.1)">🅿️</div>
+              <div class="tx-info">
+                <strong>Zone A · Slot A-07</strong>
+                <small>Apr 22, 2026 · Card</small>
+              </div>
+              <div class="tx-amount">
+                <strong style="color:var(--danger)">−₹45</strong>
+                <span class="tx-status pend">Processing</span>
+              </div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:rgba(52,211,153,0.1)">⬆️</div>
+              <div class="tx-info">
+                <strong>Wallet Top-up</strong>
+                <small>Apr 20, 2026 · Net Banking</small>
+              </div>
+              <div class="tx-amount">
+                <strong style="color:var(--success)">+₹1,000</strong>
+                <span class="tx-status ok">Credited</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Payment Panel -->
+      <div class="pay-panel">
+
+        <!-- Wallet -->
+        <div class="wallet-pay-card">
+          <div class="wallet-top">
+            <div class="wallet-label">EazyPark Wallet</div>
+            <div class="wallet-chip">✅ Sufficient</div>
+          </div>
+          <div class="wallet-bal">₹1,240</div>
+          <div class="wallet-sub">After payment: ₹1,155 remaining</div>
+          <button class="use-wallet-btn" onclick="payNow('Wallet')">
+            Pay ₹85 with Wallet
+          </button>
+        </div>
+
+        <!-- Or -->
+        <div style="display:flex;align-items:center;gap:12px;color:var(--muted);font-size:0.8rem">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          or pay with
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
+        <!-- Other Methods -->
+        <div class="methods-card">
+          <h3>Other Payment Methods</h3>
+
+          <div class="method-opt selected" id="opt-upi" onclick="selectMethod('upi')">
+            <div class="method-icon" style="background:rgba(99,102,241,0.12)">📱</div>
+            <div class="method-info">
+              <strong>UPI</strong>
+              <small>Pay via GPay, PhonePe, Paytm</small>
+            </div>
+            <div class="method-radio"></div>
+          </div>
+          <div class="upi-input-wrap show" id="upi-form">
+            <input type="text" class="upi-input" placeholder="Enter UPI ID (e.g. name@gpay)" id="upiId"/>
+          </div>
+
+          <div class="method-opt" id="opt-card" onclick="selectMethod('card')">
+            <div class="method-icon" style="background:rgba(251,191,36,0.12)">💳</div>
+            <div class="method-info">
+              <strong>Credit / Debit Card</strong>
+              <small>Visa, Mastercard, RuPay</small>
+            </div>
+            <div class="method-radio"></div>
+          </div>
+          <div class="card-form" id="card-form">
+            <input type="text" class="card-input" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this)"/>
+            <div class="card-row">
+              <input type="text" class="card-input" placeholder="MM / YY" maxlength="7"/>
+              <input type="text" class="card-input" placeholder="CVV" maxlength="3" type="password"/>
+            </div>
+            <input type="text" class="card-input" placeholder="Name on card"/>
+          </div>
+
+          <div class="method-opt" id="opt-nb" onclick="selectMethod('nb')">
+            <div class="method-icon" style="background:rgba(52,211,153,0.12)">🏦</div>
+            <div class="method-info">
+              <strong>Net Banking</strong>
+              <small>All major Indian banks</small>
+            </div>
+            <div class="method-radio"></div>
+          </div>
+
+          <button class="btn-pay" onclick="payNow('UPI')" style="margin-top:8px">
+            🔒 Pay ₹85 Securely →
+          </button>
+        </div>
+
+        <!-- Security note -->
+        <div style="text-align:center;color:var(--muted);font-size:0.75rem;line-height:1.6">
+          🔒 Payments secured by 256-bit SSL encryption<br/>
+          Powered by Razorpay · PCI-DSS Compliant
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Success Overlay -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-box">
+    <div class="success-icon">✅</div>
+    <h2>Payment Successful!</h2>
+    <div class="success-amount">₹85.00</div>
+    <p>Your parking slot <strong>B-14</strong> has been confirmed. Head to Zone B, Ground Floor.</p>
+    <div class="receipt-code" id="txCode">TXN: EPK-2604-8821-OK</div>
+    <a href="dashboard.html" class="btn-done">Go to Dashboard →</a>
+  </div>
+</div>
+
+<script>
+  let currentMethod = 'upi';
+
+  function selectMethod(m) {
+    currentMethod = m;
+    ['upi','card','nb'].forEach(id => {
+      document.getElementById('opt-'+id).classList.remove('selected');
+    });
+    document.getElementById('opt-'+m).classList.add('selected');
+    document.getElementById('upi-form').classList.toggle('show', m === 'upi');
+    document.getElementById('card-form').classList.toggle('show', m === 'card');
+  }
+
+  function fmtCard(el) {
+    let v = el.value.replace(/\D/g,'').substring(0,16);
+    el.value = v.replace(/(.{4})/g,'$1 ').trim();
+  }
+
+  function payNow(method) {
+    // Simulate processing
+    const btn = document.querySelector('.btn-pay');
+    if (btn) { btn.textContent = '⏳ Processing…'; btn.style.opacity = '0.7'; }
+    setTimeout(() => {
+      const code = 'EPK-' + Date.now().toString().slice(-8);
+      document.getElementById('txCode').textContent = `TXN: ${code}`;
+      document.getElementById('successOverlay').classList.add('show');
+    }, 1800);
+  }
+</script>
+</body>
+</html>
+
+Mr E
