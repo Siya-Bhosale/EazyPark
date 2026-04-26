@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EazyPark — Find Slots</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --indigo:   #4f46e5;
+      --violet:   #7c3aed;
+      --electric: #6366f1;
+      --aurora1:  #818cf8;
+      --aurora2:  #a78bfa;
+      --deep:     #0f0e1a;
+      --surface:  rgba(255,255,255,0.06);
+      --surface2: rgba(255,255,255,0.10);
+      --border:   rgba(255,255,255,0.10);
+      --text:     #f0eeff;
+      --muted:    rgba(240,238,255,0.48);
+      --success:  #34d399;
+      --warn:     #fbbf24;
+      --danger:   #f87171;
+      --nav-w:    240px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--deep); color: var(--text); min-height: 100vh; display: flex; }
+
+    .aurora-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .aurora-bg::before { content:''; position:absolute; width:700px;height:700px;border-radius:50%; background:radial-gradient(ellipse,rgba(99,102,241,0.22) 0%,transparent 70%); top:-150px;left:-100px; animation:dA 14s ease-in-out infinite alternate; }
+    .aurora-bg::after  { content:''; position:absolute; width:500px;height:500px;border-radius:50%; background:radial-gradient(ellipse,rgba(124,58,237,0.18) 0%,transparent 70%); bottom:-100px;right:50px; animation:dB 16s ease-in-out infinite alternate; }
+    @keyframes dA { from{transform:translate(0,0)} to{transform:translate(50px,30px)} }
+    @keyframes dB { from{transform:translate(0,0)} to{transform:translate(-30px,-20px)} }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--nav-w); background: rgba(15,14,26,0.9);
+      border-right: 1px solid var(--border); backdrop-filter: blur(30px);
+      display: flex; flex-direction: column;
+      position: fixed; top:0;left:0;bottom:0; z-index:100; padding:28px 20px;
+    }
+    .sidebar-logo { display:flex;align-items:center;gap:10px; margin-bottom:38px;padding-bottom:24px; border-bottom:1px solid var(--border); }
+    .logo-icon { width:40px;height:40px;border-radius:12px; background:linear-gradient(135deg,var(--indigo),var(--violet)); display:flex;align-items:center;justify-content:center; font-size:18px;box-shadow:0 4px 16px rgba(79,70,229,0.4); }
+    .logo-text { font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800; }
+    .nav-label { font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding:0 8px; }
+    .nav-group { margin-bottom:28px; }
+    .nav-item { display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;color:var(--muted);font-size:0.9rem;font-weight:500;cursor:pointer;transition:all .22s;margin-bottom:2px;text-decoration:none; }
+    .nav-item:hover { background:var(--surface);color:var(--text); }
+    .nav-item.active { background:linear-gradient(135deg,rgba(79,70,229,0.25),rgba(124,58,237,0.20));color:var(--aurora2);border:1px solid rgba(99,102,241,0.25); }
+    .nav-icon { font-size:17px;width:20px;text-align:center; }
+    .nav-badge { margin-left:auto;background:var(--indigo);color:#fff;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:50px; }
+    .sidebar-user { margin-top:auto;padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px; }
+    .user-ava { width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--aurora1),var(--violet));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0; }
+    .user-info small { display:block;color:var(--muted);font-size:0.72rem; }
+    .user-info span { font-size:0.88rem;font-weight:500; }
+
+    .main { margin-left: var(--nav-w); flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:1; }
+
+    .topbar { padding:20px 32px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border);background:rgba(15,14,26,0.6);backdrop-filter:blur(20px);position:sticky;top:0;z-index:50; }
+    .topbar-title { font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;flex:1; }
+    .search-bar { display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;width:260px; }
+    .search-bar input { background:none;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;flex:1; }
+    .search-bar input::placeholder { color:var(--muted); }
+
+    .content { padding:28px 32px;flex:1; }
+
+    /* Location selector */
+    .location-tabs { display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap; }
+    .loc-tab {
+      padding:10px 20px;border-radius:50px;
+      border:1px solid var(--border);background:var(--surface);
+      color:var(--muted);font-size:0.85rem;cursor:pointer;
+      transition:all .25s;font-family:'DM Sans',sans-serif;
+    }
+    .loc-tab:hover { border-color:rgba(99,102,241,0.4);color:var(--text); }
+    .loc-tab.active {
+      background:linear-gradient(135deg,var(--indigo),var(--violet));
+      border-color:transparent;color:#fff;
+      box-shadow:0 4px 16px rgba(79,70,229,0.35);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;
+      padding:16px 20px;
+      background:var(--surface);border:1px solid var(--border);border-radius:18px;
+    }
+    .filter-label { font-size:0.78rem;color:var(--muted);font-weight:500;white-space:nowrap; }
+    .filter-chips { display:flex;gap:8px;flex-wrap:wrap; }
+    .chip {
+      padding:6px 14px;border-radius:50px;font-size:0.8rem;
+      border:1px solid var(--border);background:var(--surface);
+      color:var(--muted);cursor:pointer;transition:all .22s;
+    }
+    .chip:hover { border-color:rgba(99,102,241,0.4);color:var(--text); }
+    .chip.active { background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.45);color:var(--aurora2); }
+    .chip.ev-chip.active { background:rgba(52,211,153,0.14);border-color:rgba(52,211,153,0.4);color:var(--success); }
+    .filter-sep { width:1px;height:28px;background:var(--border); }
+    .sort-select {
+      background:var(--surface);border:1px solid var(--border);color:var(--text);
+      padding:6px 12px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.8rem;outline:none;cursor:pointer;
+    }
+    .avail-count {
+      margin-left:auto;
+      background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);
+      color:var(--success);padding:6px 14px;border-radius:50px;font-size:0.8rem;font-weight:600;
+    }
+
+    /* Layout: split */
+    .slots-layout { display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start; }
+
+    /* Zone nav */
+    .zone-nav { display:flex;gap:10px;margin-bottom:20px; }
+    .zone-btn {
+      padding:8px 16px;border-radius:10px;border:1px solid var(--border);
+      background:var(--surface);color:var(--muted);font-size:0.82rem;cursor:pointer;
+      transition:all .22s;font-family:'DM Sans',sans-serif;
+    }
+    .zone-btn:hover { color:var(--text); }
+    .zone-btn.active { border-color:rgba(99,102,241,0.5);color:var(--aurora2);background:rgba(99,102,241,0.12); }
+    .zone-btn .zc { font-size:0.68rem;color:var(--muted);margin-left:4px; }
+
+    /* Floor selector */
+    .floor-row { display:flex;gap:8px;margin-bottom:20px;align-items:center; }
+    .floor-label { font-size:0.8rem;color:var(--muted);margin-right:4px; }
+    .floor-btn {
+      width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+      background:var(--surface);color:var(--muted);font-size:0.8rem;
+      cursor:pointer;transition:all .22s;display:flex;align-items:center;justify-content:center;
+    }
+    .floor-btn.active { background:var(--indigo);border-color:var(--indigo);color:#fff; }
+
+    /* Slot grid */
+    .slot-section { margin-bottom:28px; }
+    .slot-section-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px; }
+    .slot-section-header h3 { font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700; }
+    .slot-section-header small { color:var(--muted);font-size:0.78rem; }
+
+    .slot-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px; }
+
+    .slot {
+      aspect-ratio:1;border-radius:14px;border:1.5px solid;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      cursor:pointer;transition:all .25s;position:relative;
+      font-size:0.78rem;font-weight:600;font-family:'Syne',sans-serif;
+    }
+    .slot .slot-num { font-size:0.9rem;font-weight:700; }
+    .slot .slot-tag { font-size:0.6rem;font-weight:500;margin-top:2px; }
+    .slot .slot-badge {
+      position:absolute;top:-6px;right:-6px;
+      width:18px;height:18px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:10px;
+      border:2px solid var(--deep);
+    }
+
+    .slot.free {
+      background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.35);
+      color:var(--success);
+    }
+    .slot.free:hover {
+      background:rgba(52,211,153,0.18);border-color:rgba(52,211,153,0.6);
+      transform:scale(1.06);box-shadow:0 6px 20px rgba(52,211,153,0.2);
+    }
+    .slot.occupied {
+      background:rgba(248,113,113,0.06);border-color:rgba(248,113,113,0.2);
+      color:rgba(248,113,113,0.45);cursor:not-allowed;
+    }
+    .slot.reserved {
+      background:rgba(251,191,36,0.06);border-color:rgba(251,191,36,0.25);
+      color:rgba(251,191,36,0.5);cursor:not-allowed;
+    }
+    .slot.ev {
+      background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.35);
+      color:var(--aurora2);
+    }
+    .slot.ev:hover {
+      background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.6);
+      transform:scale(1.06);box-shadow:0 6px 20px rgba(99,102,241,0.2);
+    }
+    .slot.selected {
+      background:linear-gradient(135deg,rgba(79,70,229,0.35),rgba(124,58,237,0.3))!important;
+      border-color:var(--indigo)!important;color:#fff!important;
+      transform:scale(1.06);
+      box-shadow:0 6px 24px rgba(79,70,229,0.4)!important;
+    }
+    .slot.disabled { opacity:0.25;cursor:not-allowed; }
+
+    .lane-label {
+      grid-column:1/-1;
+      padding:6px 0;
+      font-size:0.7rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;
+      border-bottom:1px dashed rgba(255,255,255,0.06);margin-bottom:4px;
+    }
+    .aisle {
+      grid-column:1/-1;height:14px;
+      display:flex;align-items:center;
+      font-size:0.65rem;color:rgba(99,102,241,0.3);letter-spacing:0.08em;text-transform:uppercase;
+      border-top:1px dashed rgba(99,102,241,0.12);border-bottom:1px dashed rgba(99,102,241,0.12);
+      padding:0 4px;
+    }
+
+    /* Right panel */
+    .right-panel { display:flex;flex-direction:column;gap:18px; }
+
+    /* Legend */
+    .legend-card {
+      background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;
+    }
+    .legend-card h3 { font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;margin-bottom:14px; }
+    .legend-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+    .legend-item { display:flex;align-items:center;gap:8px;font-size:0.82rem; }
+    .legend-swatch { width:28px;height:28px;border-radius:8px;border:1.5px solid; }
+    .legend-count { font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem; }
+
+    /* Booking card */
+    .booking-card {
+      background:linear-gradient(135deg,rgba(79,70,229,0.2),rgba(124,58,237,0.15));
+      border:1px solid rgba(99,102,241,0.3);border-radius:20px;padding:22px;
+      transition:all .3s;
+    }
+    .booking-card h3 { font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;margin-bottom:16px; }
+    .booking-empty { color:var(--muted);font-size:0.85rem;text-align:center;padding:20px 0; }
+
+    .selected-slot-display { text-align:center;margin-bottom:18px; }
+    .slot-huge { font-family:'Syne',sans-serif;font-size:3rem;font-weight:800;line-height:1; }
+    .slot-meta { color:var(--muted);font-size:0.8rem;margin-top:4px; }
+
+    .duration-picker { margin-bottom:16px; }
+    .dur-label { font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em; }
+    .dur-options { display:grid;grid-template-columns:repeat(3,1fr);gap:6px; }
+    .dur-opt {
+      padding:9px 4px;border-radius:10px;border:1px solid var(--border);
+      background:rgba(255,255,255,0.04);color:var(--muted);
+      font-size:0.8rem;text-align:center;cursor:pointer;transition:all .22s;
+    }
+    .dur-opt:hover { border-color:rgba(99,102,241,0.4);color:var(--text); }
+    .dur-opt.active { background:rgba(99,102,241,0.2);border-color:var(--indigo);color:var(--aurora2); }
+    .dur-opt strong { display:block;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;color:inherit; }
+
+    .price-breakdown { background:rgba(0,0,0,0.2);border-radius:12px;padding:14px;margin-bottom:16px; }
+    .price-row { display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:6px;color:var(--muted); }
+    .price-row.total { border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;margin-top:4px;color:var(--text);font-weight:600; }
+    .price-row.total span:last-child { font-family:'Syne',sans-serif;font-size:1.05rem;color:var(--aurora2); }
+
+    .btn-book {
+      width:100%;padding:14px;
+      background:linear-gradient(135deg,var(--indigo),var(--violet));
+      border:none;border-radius:14px;color:#fff;
+      font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
+      cursor:pointer;transition:all .25s;
+      box-shadow:0 6px 24px rgba(79,70,229,0.4);
+      letter-spacing:0.02em;
+    }
+    .btn-book:hover { transform:translateY(-2px);box-shadow:0 10px 32px rgba(79,70,229,0.5); }
+    .btn-book:disabled { opacity:0.4;cursor:not-allowed;transform:none; }
+
+    /* Stats mini */
+    .mini-stats { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+    .mini-stat {
+      background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;
+    }
+    .mini-stat .val { font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px; }
+    .mini-stat .lbl { font-size:0.7rem;color:var(--muted); }
+
+    /* Modal */
+    .modal-overlay {
+      position:fixed;inset:0;z-index:999;
+      background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity .3s;
+    }
+    .modal-overlay.open { opacity:1;pointer-events:auto; }
+    .modal {
+      background:#16152a;border:1px solid rgba(99,102,241,0.3);border-radius:24px;
+      padding:32px;width:420px;max-width:90vw;
+      transform:scale(0.9) translateY(20px);transition:all .35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.open .modal { transform:scale(1) translateY(0); }
+    .modal h2 { font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:6px; }
+    .modal p { color:var(--muted);font-size:0.85rem;margin-bottom:22px; }
+    .modal-actions { display:flex;gap:12px;margin-top:22px; }
+    .btn-cancel { flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s; }
+    .btn-cancel:hover { background:var(--surface2); }
+    .btn-confirm { flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(79,70,229,0.4); }
+    .btn-confirm:hover { transform:translateY(-1px); }
+
+    @media (max-width:1000px) { .slots-layout { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="aurora-bg"></div>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🅿️</div>
+    <span class="logo-text">EazyPark</span>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Main</div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="slots.html" class="nav-item active"><span class="nav-icon">🗺️</span> Find Slots<span class="nav-badge">12</span></a>
+    <a href="payment.html" class="nav-item"><span class="nav-icon">💳</span> Payments</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Account</div>
+    <a href="#" class="nav-item"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" style="background:var(--danger)">3</span></a>
+    <a href="#" class="nav-item"><span class="nav-icon">⚙️</span> Settings</a>
+    <a href="index.html" class="nav-item"><span class="nav-icon">🚪</span> Sign Out</a>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-ava">AM</div>
+    <div class="user-info"><span>Alex Morgan</span><small>Premium Member</small></div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">🗺️ Find & Book Slots</div>
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" placeholder="Search slot number, zone…" oninput="filterSlots(this.value)"/>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Location tabs -->
+    <div class="location-tabs">
+      <button class="loc-tab active" onclick="setLoc(this,'Pune Central Mall')">📍 Pune Central Mall</button>
+      <button class="loc-tab" onclick="setLoc(this,'Ruby Hall Clinic')">🏥 Ruby Hall Clinic</button>
+      <button class="loc-tab" onclick="setLoc(this,'Koregaon Park P3')">🏬 Koregaon Park P3</button>
+      <button class="loc-tab" onclick="setLoc(this,'FC Road Ground')">🌿 FC Road Ground</button>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <span class="filter-label">Filter:</span>
+      <div class="filter-chips">
+        <button class="chip active" onclick="toggleChip(this,'all')">All Slots</button>
+        <button class="chip" onclick="toggleChip(this,'free')">✅ Available</button>
+        <button class="chip" onclick="toggleChip(this,'occupied')">🚫 Occupied</button>
+        <button class="chip ev-chip" onclick="toggleChip(this,'ev')">⚡ EV Only</button>
+        <button class="chip" onclick="toggleChip(this,'compact')">🚗 Compact</button>
+        <button class="chip" onclick="toggleChip(this,'accessible')">♿ Accessible</button>
+      </div>
+      <div class="filter-sep"></div>
+      <select class="sort-select"><option>Sort: Nearest</option><option>Sort: Price ↑</option><option>Sort: Price ↓</option></select>
+      <span class="avail-count" id="availCount">12 Available</span>
+    </div>
+
+    <div class="slots-layout">
+      <!-- Slot grid -->
+      <div>
+        <!-- Zone nav -->
+        <div class="zone-nav">
+          <button class="zone-btn active" onclick="setZone(this,'A')">Zone A <span class="zc">(30)</span></button>
+          <button class="zone-btn" onclick="setZone(this,'B')">Zone B <span class="zc">(20)</span></button>
+          <button class="zone-btn" onclick="setZone(this,'C')">Zone C <span class="zc">(15)</span></button>
+          <button class="zone-btn" onclick="setZone(this,'D')">Zone D — EV <span class="zc">(12)</span></button>
+        </div>
+
+        <!-- Floor -->
+        <div class="floor-row">
+          <span class="floor-label">Floor:</span>
+          <button class="floor-btn active" onclick="setFloor(this,1)">G</button>
+          <button class="floor-btn" onclick="setFloor(this,2)">1</button>
+          <button class="floor-btn" onclick="setFloor(this,3)">2</button>
+          <button class="floor-btn" onclick="setFloor(this,4)">3</button>
+        </div>
+
+        <!-- Grid -->
+        <div id="slotGrid"></div>
+      </div>
+
+      <!-- Right panel -->
+      <div class="right-panel">
+
+        <!-- Legend -->
+        <div class="legend-card">
+          <h3>Legend</h3>
+          <div class="legend-row">
+            <div class="legend-item">
+              <div class="legend-swatch" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.35)"></div>
+              <span>Available</span>
+            </div>
+            <span class="legend-count" style="color:var(--success)" id="freeCount">18</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-item">
+              <div class="legend-swatch" style="background:rgba(248,113,113,0.06);border-color:rgba(248,113,113,0.2)"></div>
+              <span>Occupied</span>
+            </div>
+            <span class="legend-count" style="color:var(--danger)" id="occCount">8</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-item">
+              <div class="legend-swatch" style="background:rgba(251,191,36,0.06);border-color:rgba(251,191,36,0.25)"></div>
+              <span>Reserved</span>
+            </div>
+            <span class="legend-count" style="color:var(--warn)" id="resCount">4</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-item">
+              <div class="legend-swatch" style="background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.35)"></div>
+              <span>⚡ EV Charging</span>
+            </div>
+            <span class="legend-count" style="color:var(--aurora2)" id="evCount">6</span>
+          </div>
+        </div>
+
+        <!-- Booking Panel -->
+        <div class="booking-card" id="bookingCard">
+          <h3>🎯 Reserve a Slot</h3>
+          <div id="bookingContent">
+            <div class="booking-empty">
+              <div style="font-size:2.5rem;margin-bottom:12px">🅿️</div>
+              <p>Tap any available slot on the grid to select it and book your spot.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini stats -->
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <div class="val" style="color:var(--warn)">₹40</div>
+            <div class="lbl">Per Hour (Standard)</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" style="color:var(--aurora2)">₹60</div>
+            <div class="lbl">Per Hour (EV)</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val">24/7</div>
+            <div class="lbl">Operating Hours</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" style="color:var(--success)">CCTV</div>
+            <div class="lbl">Security Coverage</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>Confirm Booking</h2>
+    <p id="modalText">Reserve slot A-01 for 1 hour?</p>
+    <div class="price-breakdown">
+      <div class="price-row"><span>Parking fee</span><span id="m-fee">₹40</span></div>
+      <div class="price-row"><span>Service fee</span><span>₹5</span></div>
+      <div class="price-row total"><span>Total</span><span id="m-total">₹45</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmBooking()">Confirm & Pay →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Slot data generator
+  const zoneConfig = {
+    A: { count: 30, evSlots: [], disabledSlots: [3,7], reservedSlots: [5,12,18,25] },
+    B: { count: 20, evSlots: [], disabledSlots: [2], reservedSlots: [4,9] },
+    C: { count: 15, evSlots: [], disabledSlots: [], reservedSlots: [1,6,11] },
+    D: { count: 12, evSlots: [1,2,3,4,5,6,7,8,9,10,11,12], disabledSlots: [], reservedSlots: [3,7] }
+  };
+
+  const occupiedMap = {
+    A: [1,4,6,8,10,13,15,19,22],
+    B: [1,3,6,8,11,14,17],
+    C: [2,4,7,9,12],
+    D: [1,4,8]
+  };
+
+  let selectedSlot = null;
+  let selectedZone = 'A';
+  let selectedDuration = 1;
+  const priceMap = { standard: 40, ev: 60 };
+
+  function buildGrid(zone) {
+    const cfg = zoneConfig[zone];
+    const occ = occupiedMap[zone] || [];
+    const grid = document.getElementById('slotGrid');
+    grid.innerHTML = '';
+
+    const section = document.createElement('div');
+    section.className = 'slot-section';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'slot-section-header';
+    hdr.innerHTML = `<h3>Zone ${zone} — Ground Floor</h3><small>${cfg.count} total slots</small>`;
+    section.appendChild(hdr);
+
+    const g = document.createElement('div');
+    g.className = 'slot-grid';
+
+    const midRow = Math.ceil(cfg.count / 2);
+
+    for (let i = 1; i <= cfg.count; i++) {
+      if (i === midRow + 1) {
+        const aisle = document.createElement('div');
+        aisle.className = 'aisle';
+        aisle.textContent = '← Driving Aisle →';
+        g.appendChild(aisle);
+      }
+
+      const isEV = cfg.evSlots.includes(i);
+      const isOcc = occ.includes(i);
+      const isRes = cfg.reservedSlots.includes(i);
+      const isDis = cfg.disabledSlots.includes(i);
+      const isAcc = i % 7 === 0;
+
+      let cls = 'slot ';
+      if (isDis)     { cls += 'disabled'; }
+      else if (isOcc){ cls += 'occupied'; }
+      else if (isRes){ cls += 'reserved'; }
+      else if (isEV) { cls += 'ev'; }
+      else           { cls += 'free'; }
+
+      const el = document.createElement('div');
+      el.className = cls;
+      el.dataset.slot = i;
+      el.dataset.zone = zone;
+      el.dataset.type = isEV ? 'ev' : 'standard';
+
+      let badge = '';
+      if (isEV)  badge = `<div class="slot-badge" style="background:#4f46e5;">⚡</div>`;
+      if (isAcc) badge = `<div class="slot-badge" style="background:#7c3aed;">♿</div>`;
+
+      let tag = isOcc ? 'Taken' : isRes ? 'Reserved' : isEV ? 'EV' : isAcc ? 'Access' : '';
+
+      el.innerHTML = `
+        ${badge}
+        <span class="slot-num">${zone}-${String(i).padStart(2,'0')}</span>
+        <span class="slot-tag">${tag}</span>
+      `;
+
+      if (!isOcc && !isRes && !isDis) {
+        el.addEventListener('click', () => selectSlot(el, zone, i, isEV));
+      }
+      g.appendChild(el);
+    }
+    section.appendChild(g);
+    grid.appendChild(section);
+    updateCounts(zone);
+  }
+
+  function selectSlot(el, zone, num, isEV) {
+    document.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSlot = { zone, num, isEV };
+    renderBookingPanel();
+  }
+
+  function renderBookingPanel() {
+    const { zone, num, isEV } = selectedSlot;
+    const label = `${zone}-${String(num).padStart(2,'0')}`;
+    const rate = isEV ? priceMap.ev : priceMap.standard;
+    const fee = rate * selectedDuration;
+    const total = fee + 5;
+
+    document.getElementById('bookingContent').innerHTML = `
+      <div class="selected-slot-display">
+        <div class="slot-huge">${label}</div>
+        <div class="slot-meta">Zone ${zone} · ${isEV ? '⚡ EV Charging Bay' : '🚗 Standard Slot'} · Ground Floor</div>
+      </div>
+      <div class="duration-picker">
+        <div class="dur-label">Select Duration</div>
+        <div class="dur-options" id="durOpts">
+          ${[1,2,3,4,6,8].map(h => `
+            <div class="dur-opt ${h===selectedDuration?'active':''}" onclick="setDuration(${h},${rate})">
+              <strong>${h}h</strong>₹${rate*h}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="price-breakdown">
+        <div class="price-row"><span>Parking (${selectedDuration}h × ₹${rate})</span><span>₹${fee}</span></div>
+        <div class="price-row"><span>Service fee</span><span>₹5</span></div>
+        <div class="price-row total"><span>Total</span><span>₹${total}</span></div>
+      </div>
+      <button class="btn-book" onclick="openModal('${label}',${fee},${total})">
+        Reserve ${label} →
+      </button>
+    `;
+  }
+
+  function setDuration(h, rate) {
+    selectedDuration = h;
+    renderBookingPanel();
+  }
+
+  function updateCounts(zone) {
+    const cfg = zoneConfig[zone];
+    const occ = occupiedMap[zone] || [];
+    const free = cfg.count - occ.length - cfg.reservedSlots.length;
+    document.getElementById('freeCount').textContent = free;
+    document.getElementById('occCount').textContent  = occ.length;
+    document.getElementById('resCount').textContent  = cfg.reservedSlots.length;
+    document.getElementById('evCount').textContent   = cfg.evSlots.length;
+    document.getElementById('availCount').textContent = `${free} Available`;
+  }
+
+  function setZone(btn, zone) {
+    document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedZone = zone;
+    selectedSlot = null;
+    document.getElementById('bookingContent').innerHTML = `<div class="booking-empty"><div style="font-size:2.5rem;margin-bottom:12px">🅿️</div><p>Tap any available slot to book.</p></div>`;
+    buildGrid(zone);
+  }
+
+  function setFloor(btn) {
+    document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildGrid(selectedZone);
+  }
+
+  function setLoc(btn) {
+    document.querySelectorAll('.loc-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildGrid(selectedZone);
+  }
+
+  function toggleChip(el, filter) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    if (filter === 'ev') el.classList.add('ev-chip');
+    buildGrid(selectedZone);
+  }
+
+  function filterSlots(q) {
+    document.querySelectorAll('.slot').forEach(s => {
+      const label = (s.dataset.zone || '') + '-' + String(s.dataset.slot || '').padStart(2,'0');
+      s.style.opacity = label.toLowerCase().includes(q.toLowerCase()) ? '1' : '0.2';
+    });
+  }
+
+  function openModal(label, fee, total) {
+    document.getElementById('modalText').textContent = `Reserve slot ${label} for ${selectedDuration} hour${selectedDuration>1?'s':''}`;
+    document.getElementById('m-fee').textContent = `₹${fee}`;
+    document.getElementById('m-total').textContent = `₹${total}`;
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+
+  function confirmBooking() {
+    closeModal();
+    window.location.href = 'payment.html';
+  }
+
+  // Init
+  buildGrid('A');
+</script>
+</body>
+</html>
+
+Mr E
