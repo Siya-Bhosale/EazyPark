@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EazyPark — Smart Urban Parking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --indigo:    #4f46e5;
+      --violet:    #7c3aed;
+      --electric:  #6366f1;
+      --aurora1:   #818cf8;
+      --aurora2:   #a78bfa;
+      --aurora3:   #c4b5fd;
+      --deep:      #0f0e1a;
+      --surface:   rgba(255,255,255,0.06);
+      --surface2:  rgba(255,255,255,0.10);
+      --border:    rgba(255,255,255,0.13);
+      --text:      #f0eeff;
+      --muted:     rgba(240,238,255,0.5);
+      --success:   #34d399;
+      --danger:    #f87171;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--deep);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Aurora Background ── */
+    .aurora-bg {
+      position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    }
+    .aurora-bg::before {
+      content: '';
+      position: absolute;
+      width: 900px; height: 900px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.35) 0%, transparent 70%);
+      top: -200px; left: -200px;
+      animation: drift1 12s ease-in-out infinite alternate;
+    }
+    .aurora-bg::after {
+      content: '';
+      position: absolute;
+      width: 700px; height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.30) 0%, transparent 70%);
+      bottom: -150px; right: -100px;
+      animation: drift2 14s ease-in-out infinite alternate;
+    }
+    .aurora-mid {
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(167,139,250,0.20) 0%, transparent 70%);
+      top: 40%; left: 50%; transform: translate(-50%,-50%);
+      animation: drift3 10s ease-in-out infinite alternate;
+    }
+    @keyframes drift1 { from{transform:translate(0,0) scale(1)} to{transform:translate(60px,40px) scale(1.1)} }
+    @keyframes drift2 { from{transform:translate(0,0) scale(1)} to{transform:translate(-50px,-30px) scale(1.15)} }
+    @keyframes drift3 { from{transform:translate(-50%,-50%) scale(1)} to{transform:translate(-50%,-50%) scale(1.2)} }
+
+    /* noise overlay */
+    .aurora-bg .noise {
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    /* ── Grid lines ── */
+    .grid-lines {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* ── Card ── */
+    .card-wrap {
+      position: relative; z-index: 2;
+      display: flex; align-items: stretch;
+      width: 920px; max-width: 95vw;
+      border-radius: 28px; overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.12);
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(32px) scale(0.98) }
+      to   { opacity:1; transform:translateY(0)     scale(1)    }
+    }
+
+    /* Left panel */
+    .left-panel {
+      width: 42%;
+      background: linear-gradient(145deg, rgba(79,70,229,0.55) 0%, rgba(124,58,237,0.45) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 56px 44px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .left-panel::before {
+      content: '';
+      position: absolute; top: -60px; right: -60px;
+      width: 220px; height: 220px; border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+    }
+    .left-panel::after {
+      content: '';
+      position: absolute; bottom: -40px; left: -40px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+    }
+    .brand { position: relative; z-index: 1; }
+    .brand-icon {
+      width: 52px; height: 52px; border-radius: 16px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .brand h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 2.4rem; font-weight: 800; line-height: 1;
+      letter-spacing: -1px; color: #fff;
+    }
+    .brand p { color: rgba(255,255,255,0.65); margin-top: 10px; font-size: 0.95rem; line-height: 1.5; }
+
+    .features { position: relative; z-index: 1; }
+    .feature-item {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 18px;
+    }
+    .feature-dot {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .feature-text small { display: block; color: rgba(255,255,255,0.45); font-size: 0.72rem; }
+    .feature-text span { font-size: 0.88rem; font-weight: 500; color: #fff; }
+
+    .stats-row {
+      display: flex; gap: 20px; position: relative; z-index: 1;
+      padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.12);
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; color: #fff;
+      display: block;
+    }
+    .stat-label { font-size: 0.72rem; color: rgba(255,255,255,0.45); }
+
+    /* Right panel */
+    .right-panel {
+      flex: 1;
+      background: rgba(15,14,26,0.75);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      padding: 52px 48px;
+    }
+
+    /* Tab toggle */
+    .tab-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 4px;
+      margin-bottom: 36px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 0;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500;
+      border: none; cursor: pointer;
+      border-radius: 50px; transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      background: transparent; color: var(--muted);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--indigo), var(--violet));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(79,70,229,0.4);
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 0.78rem; font-weight: 500; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .form-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      padding: 13px 18px;
+      transition: all 0.25s;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--electric);
+      background: rgba(99,102,241,0.08);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    .form-input::placeholder { color: rgba(240,238,255,0.25); }
+
+    .input-icon-wrap { position: relative; }
+    .input-icon-wrap .form-input { padding-left: 46px; }
+    .input-icon-wrap .icon {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 16px; pointer-events: none;
+    }
+    .input-icon-wrap .toggle-pw {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 14px; padding: 4px;
+      transition: color 0.2s;
+    }
+    .input-icon-wrap .toggle-pw:hover { color: var(--text); }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .forgot { text-align: right; margin-bottom: 24px; }
+    .forgot a { font-size: 0.8rem; color: var(--aurora2); text-decoration: none; transition: color 0.2s; }
+    .forgot a:hover { color: #fff; }
+
+    .btn-primary {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%);
+      border: none; border-radius: 14px;
+      color: #fff; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 32px rgba(79,70,229,0.4);
+      letter-spacing: 0.02em;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,70,229,0.5); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    }
+
+    .divider {
+      display: flex; align-items: center; gap: 14px;
+      margin: 22px 0; color: var(--muted); font-size: 0.78rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .social-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btn-social {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.85rem; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: all 0.25s;
+    }
+    .btn-social:hover { background: var(--surface2); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+    .panel { display: none; }
+    .panel.active { display: block; animation: panelIn 0.35s cubic-bezier(0.4,0,0.2,1) both; }
+    @keyframes panelIn { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+
+    .terms { font-size: 0.75rem; color: var(--muted); margin-top: 18px; text-align: center; line-height: 1.5; }
+    .terms a { color: var(--aurora2); text-decoration: none; }
+
+    /* phone input */
+    .phone-wrap { display: flex; gap: 8px; }
+    .phone-code {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      color: var(--text); padding: 13px 12px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+      width: 80px; outline: none; cursor: pointer;
+    }
+    .phone-code:focus { border-color: var(--electric); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+
+    /* strength bar */
+    .pw-strength { margin-top: 8px; display: flex; gap: 4px; }
+    .strength-seg {
+      height: 3px; flex: 1; border-radius: 3px;
+      background: var(--border); transition: background 0.3s;
+    }
+    .strength-seg.weak   { background: var(--danger); }
+    .strength-seg.medium { background: #fbbf24; }
+    .strength-seg.strong { background: var(--success); }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.35);
+      color: var(--success); padding: 12px 24px; border-radius: 50px;
+      font-size: 0.88rem; font-weight: 500; backdrop-filter: blur(20px);
+      z-index: 999; opacity: 0; transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 720px) {
+      .card-wrap { flex-direction: column; }
+      .left-panel { width: 100%; padding: 36px 30px; }
+      .features, .stats-row { display: none; }
+      .right-panel { padding: 36px 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="aurora-bg">
+  <div class="aurora-mid"></div>
+  <div class="noise"></div>
+</div>
+<div class="grid-lines"></div>
+
+<div class="card-wrap">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="brand">
+      <div class="brand-icon">🅿️</div>
+      <h1>EazyPark</h1>
+      <p>Smart urban parking — find, book and pay in seconds. No stress, just spaces.</p>
+    </div>
+
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-dot">⚡</div>
+        <div class="feature-text">
+          <span>Instant Booking</span>
+          <small>Reserve your spot in under 10 seconds</small>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot">🔋</div>
+        <div class="feature-text">
+          <span>EV Charging</span>
+          <small>Dedicated charging bays available</small>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot">🗺️</div>
+        <div class="feature-text">
+          <span>Live Map View</span>
+          <small>Real-time slot availability updates</small>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot">💳</div>
+        <div class="feature-text">
+          <span>Digital Wallet</span>
+          <small>Top up and pay instantly</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-item">
+        <span class="stat-num">1.2K+</span>
+        <span class="stat-label">Slots</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">98%</span>
+        <span class="stat-label">Uptime</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">50+</span>
+        <span class="stat-label">Locations</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div class="tab-toggle">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="tab-btn" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <!-- LOGIN PANEL -->
+    <div class="panel active" id="panel-login">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="input-icon-wrap">
+          <span class="icon">✉️</span>
+          <input type="email" class="form-input" id="login-email" placeholder="you@example.com"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-icon-wrap">
+          <span class="icon">🔒</span>
+          <input type="password" class="form-input" id="login-pw" placeholder="••••••••"/>
+          <button class="toggle-pw" onclick="togglePw('login-pw',this)">👁️</button>
+        </div>
+      </div>
+      <div class="forgot"><a href="#">Forgot password?</a></div>
+      <button class="btn-primary" onclick="doLogin()">Sign In to EazyPark →</button>
+      <div class="divider">or continue with</div>
+      <div class="social-row">
+        <button class="btn-social">🔵 Google</button>
+        <button class="btn-social">🍎 Apple</button>
+      </div>
+    </div>
+
+    <!-- SIGNUP PANEL -->
+    <div class="panel" id="panel-signup">
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <div class="input-icon-wrap">
+            <span class="icon">👤</span>
+            <input type="text" class="form-input" placeholder="Alex"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input type="text" class="form-input" placeholder="Morgan"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="input-icon-wrap">
+          <span class="icon">✉️</span>
+          <input type="email" class="form-input" placeholder="you@example.com"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <div class="phone-wrap">
+          <select class="phone-code"><option>+91</option><option>+1</option><option>+44</option></select>
+          <input type="tel" class="form-input" placeholder="98765 43210"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-icon-wrap">
+          <span class="icon">🔒</span>
+          <input type="password" class="form-input" id="signup-pw" placeholder="Create a strong password" oninput="checkStrength(this.value)"/>
+          <button class="toggle-pw" onclick="togglePw('signup-pw',this)">👁️</button>
+        </div>
+        <div class="pw-strength" id="pw-strength">
+          <div class="strength-seg" id="s1"></div>
+          <div class="strength-seg" id="s2"></div>
+          <div class="strength-seg" id="s3"></div>
+          <div class="strength-seg" id="s4"></div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="doSignup()">Create My Account →</button>
+      <p class="terms">By signing up you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  function togglePw(id, btn) {
+    const inp = document.getElementById(id);
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+    else { inp.type = 'password'; btn.textContent = '👁️'; }
+  }
+
+  function checkStrength(val) {
+    const segs = ['s1','s2','s3','s4'];
+    segs.forEach(s => { document.getElementById(s).className = 'strength-seg'; });
+    if (!val) return;
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const cls = score <= 1 ? 'weak' : score <= 2 ? 'medium' : score <= 3 ? 'medium' : 'strong';
+    for (let i = 0; i < score; i++) document.getElementById(segs[i]).classList.add(cls);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function doLogin() {
+    const email = document.getElementById('login-email').value;
+    const pw    = document.getElementById('login-pw').value;
+    if (!email || !pw) { showToast('⚠️ Please fill in all fields'); return; }
+    showToast('✅ Welcome back! Redirecting…');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1400);
+  }
+
+  function doSignup() {
+    showToast('🎉 Account created! Signing you in…');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1400);
+  }
+</script>
+</body>
+</html>
+
